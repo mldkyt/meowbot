@@ -20,8 +20,8 @@ def post_waf():
 async def waf():
     while True:
 
-        a = randint(0, 10000)
-        if a == 6767:
+        a = randint(0, 100)
+        if a == 67:
             post_waf()
 
         await sleep(60)
