@@ -1,4 +1,5 @@
 import asyncio
+import random
 import re
 from asyncio import sleep
 from os import getenv
@@ -15,7 +16,7 @@ from misskey import Misskey
 def post_waf():
     global misskey
 
-    misskey.post("waf")
+    misskey.post(random.choice(["waf", "waff", ":neofox_floof:", ":neofox_pat_floof:", ":neofox_floof_cute:", ":neofox_floof__w_:", ":neofox_floof_happy:"]))
 
 async def waf():
     while True:
@@ -46,10 +47,16 @@ async def reply(debug=False):
             # Handle replying
             if re.match(r"^.*wa+f+.*$", i["note"]["text"].lower()):
                 misskey.post(quote_id=i["note"]["id"])
-                misskey.post(misskey.mention_users(i["note"]) + " waf", reply_id=i["note"]["id"])
+                await sleep(0.1)
+                misskey.post(misskey.mention_users(i["note"]) + " " + random.choice(["waf", "waff", ":neofox_floof:", ":neofox_pat_floof:", ":neofox_floof_cute:", ":neofox_floof__w_:", ":neofox_floof_happy:"]), reply_id=i["note"]["id"])
+                await sleep(0.1)
+                misskey.add_reaction(i["note"], random.choice([":neofox_floof:", ":neofox_pat_floof:", ":neofox_floof_cute:", ":neofox_floof__w_:", ":neofox_floof_happy:"]))
+                await sleep(0.1)
 
                 with engine.begin() as c:
                     c.execute(insert(replied_posts).values(id=str(i["id"])))
+
+                await sleep(0.5)
 
 
         await asyncio.sleep(30)

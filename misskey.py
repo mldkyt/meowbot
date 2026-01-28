@@ -283,3 +283,9 @@ class Misskey:
             waf.remove(f"@{self.me['username']}@{self.instance_without_domain}")
 
         return " ".join(waf)
+
+    def add_reaction(self, note: dict, reaction: str):
+        post(f"{self.instance}/api/notes/reactions/create", json={
+            "noteId": note["id"],
+            "reaction": reaction
+        })
