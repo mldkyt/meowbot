@@ -288,4 +288,4 @@ class Misskey:
         post(f"{self.instance}/api/notes/reactions/create", json={
             "noteId": note["id"],
             "reaction": reaction
-        })
+        }, headers={"Authorization": f"Bearer {self.token}"})
