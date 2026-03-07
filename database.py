@@ -2,7 +2,7 @@ import json
 import os
 
 import dotenv
-from sqlalchemy import create_engine, MetaData, Table, VARCHAR, Column
+from sqlalchemy import create_engine, MetaData, Table, VARCHAR, Column, DateTime
 
 if not os.path.exists("data"):
     os.mkdir("data")
@@ -20,6 +20,14 @@ replied_posts = Table(
     "quoted_posts",
     md_obj,
     Column("id", VARCHAR, primary_key=True),
+)
+
+follows_table = Table(
+    "follows",
+    md_obj,
+    Column("id", VARCHAR, primary_key=True),
+    Column("acct", VARCHAR, nullable=False),
+    Column("followed", DateTime, nullable=True, server_default="2026-01-28T00:00:00.000Z")
 )
 
 md_obj.create_all(engine, checkfirst=True)

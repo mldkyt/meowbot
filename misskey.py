@@ -289,3 +289,13 @@ class Misskey:
             "noteId": note["id"],
             "reaction": reaction
         }, headers={"Authorization": f"Bearer {self.token}"})
+
+    def home_tl(self):
+        tl = post(f"{self.instance}/api/notes/timeline", json={
+            "limit": 20,
+            "allowPartial": True,
+            "withBots": False,
+            "withRenotes": False
+        }, headers={"Authorization": f"Bearer {self.token}"})
+
+        return tl.json()
