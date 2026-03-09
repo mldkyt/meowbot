@@ -6,6 +6,8 @@ from asyncio import sleep
 from os import getenv
 from random import randint
 
+import requests
+from aiohttp import ClientSession
 from dotenv import load_dotenv
 from sqlalchemy import select, insert, delete
 from sqlalchemy.util import await_only
@@ -174,13 +176,28 @@ async def check_followers():
             break
 
 
+async def status():
+    HEARTBEAT_URL = getenv("HEARTBEAT_URL", "")
+
+    if len(HEARTBEAT_URL.strip()) == 0:
+        return
+
+    while True:
+        async with ClientSession() as session:
+            async with session.post(HEARTBEAT_URL, timeout=5):
+                pass
+
+        await asyncio.sleep(60)
+
+
 async def wafin():
 
     await asyncio.gather(
         waf(),
         reply(),
         timeline(),
-        check_followers()
+        check_followers(),
+        status()
     )
 
 
