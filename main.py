@@ -84,6 +84,10 @@ async def timeline():
                 if post["text"] is None:
                     continue
 
+                # Check author
+                if post["user"]["id"] == misskey.me["id"]:
+                    continue
+
                 # Check reply state
                 with engine.begin() as c:
                     if (c.execute(select(replied_posts).where(
