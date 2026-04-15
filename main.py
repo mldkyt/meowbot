@@ -6,34 +6,90 @@ from asyncio import sleep
 from os import getenv
 from random import randint
 
-import requests
-from aiohttp import ClientSession
+from aiohttp import ClientSession, ClientTimeout
 from dotenv import load_dotenv
-from sqlalchemy import select, insert, delete
-from sqlalchemy.util import await_only
+from sqlalchemy import delete, insert, select
 
-from database import replied_posts, engine, follows_table
-from logger import wafbot_logger
+from database import engine, follows_table, replied_posts
+from logger import catbot_logger
 from misskey import Misskey
 
 
-def post_waf():
+def post_meow():
     global misskey
 
-    misskey.post(random.choice(["waf", "waff", ":neofox_floof:", ":neofox_pat_floof:", ":neofox_floof_cute:", ":neofox_floof__w_:", ":neofox_floof_happy:"]))
+    meowpost = []
 
-async def waf():
+    for word in range(randint(1, 10)):
+        iter = randint(1, 5)
+        if iter == 1:
+            meowpost.append("m" + "e" * randint(1, 3) + "o" * randint(1, 3) + "w")
+        if iter == 2:
+            meowpost.append(
+                "m"
+                + "r" * randint(1, 3)
+                + "e" * randint(1, 3)
+                + "o" * randint(1, 3)
+                + "w"
+            )
+        if iter == 3:
+            meowpost.append("mr" + "o" * randint(1, 3) + "w")
+        if iter == 4:
+            meowpost.append(
+                "m"
+                + "r" * randint(1, 3)
+                + "a" * randint(1, 3)
+                + "o" * randint(1, 3)
+                + "w"
+            )
+        if iter == 5:
+            meowpost.append("ny" + "a" * randint(1, 5))
+
+    misskey.post(" ".join(meowpost))
+
+
+async def meow():
     while True:
-
         try:
             a = randint(0, 100)
             if a == 67:
-                post_waf()
+                post_meow()
 
             await sleep(60)
         except Exception:
-            wafbot_logger.exception("exception in waf")
+            catbot_logger.exception("exception in waf")
             break
+
+
+def build_reply(text: str) -> str:
+    reply = []
+
+    for word in text.split(" "):
+        if re.match(r"^me+o+w$", word):
+            reply.append("m" + "e" * randint(1, 3) + "o" * randint(1, 3) + "w")
+        if re.match(r"^mr+e+o+w$", word):
+            reply.append(
+                "m"
+                + "r" * randint(1, 3)
+                + "e" * randint(1, 3)
+                + "o" * randint(1, 3)
+                + "w"
+            )
+        if re.match(r"^mro+w$", word):
+            reply.append("mr" + "o" * randint(1, 3) + "w")
+        if re.match(r"^mr+a+o+w", word):
+            reply.append(
+                "m"
+                + "r" * randint(1, 3)
+                + "a" * randint(1, 3)
+                + "o" * randint(1, 3)
+                + "w"
+            )
+        if re.match(r"^nya+$", word):
+            reply.append("ny" + "a" * randint(1, 5))
+
+    return " ".join(reply)
+
 
 async def reply(debug=False):
     global misskey
@@ -48,21 +104,39 @@ async def reply(debug=False):
 
                 # Check reply state
                 with engine.begin() as c:
-                    if (c.execute(select(replied_posts).where(
-                            (replied_posts.c.id == str(i["note"]["id"])))).fetchone() is not None):
+                    if (
+                        c.execute(
+                            select(replied_posts).where(
+                                (replied_posts.c.id == str(i["note"]["id"]))
+                            )
+                        ).fetchone()
+                        is not None
+                    ):
                         continue
 
                 # Handle replying
-                if re.match(r"^.*wa+f+.*$", i["note"]["text"].lower()):
+                reply_text = build_reply(i["note"]["text"].lower())
+
+                if len(reply_text.strip()) > 0:
                     misskey.post(quote_id=i["note"]["id"])
                     await sleep(0.1)
-                    misskey.post(misskey.mention_users(i["note"]) + " " + random.choice(
-                        ["waf", "waff", ":neofox_floof:", ":neofox_pat_floof:", ":neofox_floof_cute:",
-                         ":neofox_floof__w_:", ":neofox_floof_happy:"]), reply_id=i["note"]["id"])
+                    misskey.post(
+                        misskey.mention_users(i["note"]) + " " + reply_text + " :3",
+                        reply_id=i["note"]["id"],
+                    )
                     await sleep(0.1)
-                    misskey.add_reaction(i["note"], random.choice(
-                        [":neofox_floof:", ":neofox_pat_floof:", ":neofox_floof_cute:", ":neofox_floof__w_:",
-                         ":neofox_floof_happy:"]))
+                    misskey.add_reaction(
+                        i["note"],
+                        random.choice(
+                            [
+                                ":neocat_floof:",
+                                ":neocat_pat_floof:",
+                                ":neocat_floof_cute:",
+                                ":neocat_floof__w_:",
+                                ":neocat_floof_happy:",
+                            ]
+                        ),
+                    )
                     await sleep(0.1)
 
                     with engine.begin() as c:
@@ -72,8 +146,9 @@ async def reply(debug=False):
 
             await asyncio.sleep(30)
         except Exception:
-            wafbot_logger.exception("exception in reply")
+            catbot_logger.exception("exception in reply")
             break
+
 
 async def timeline():
     while True:
@@ -90,21 +165,38 @@ async def timeline():
 
                 # Check reply state
                 with engine.begin() as c:
-                    if (c.execute(select(replied_posts).where(
-                            (replied_posts.c.id == str(post["id"])))).fetchone() is not None):
+                    if (
+                        c.execute(
+                            select(replied_posts).where(
+                                (replied_posts.c.id == str(post["id"]))
+                            )
+                        ).fetchone()
+                        is not None
+                    ):
                         continue
 
                 # Handle replying
-                if re.match(r"^.*\bwa+f+\b.*$", post["text"].lower()):
+                reply_text = build_reply(post["text"].lower())
+                if len(reply_text.strip()) > 0:
                     misskey.post(quote_id=post["id"])
                     await sleep(0.1)
-                    misskey.post(misskey.mention_users(post) + " " + random.choice(
-                        ["waf", "waff", ":neofox_floof:", ":neofox_pat_floof:", ":neofox_floof_cute:",
-                         ":neofox_floof__w_:", ":neofox_floof_happy:"]), reply_id=post["id"])
+                    misskey.post(
+                        misskey.mention_users(post) + " " + reply_text + " :3",
+                        reply_id=post["id"],
+                    )
                     await sleep(0.1)
-                    misskey.add_reaction(post, random.choice(
-                        [":neofox_floof:", ":neofox_pat_floof:", ":neofox_floof_cute:", ":neofox_floof__w_:",
-                         ":neofox_floof_happy:"]))
+                    misskey.add_reaction(
+                        post,
+                        random.choice(
+                            [
+                                ":neocat_floof:",
+                                ":neocat_pat_floof:",
+                                ":neocat_floof_cute:",
+                                ":neocat_floof__w_:",
+                                ":neocat_floof_happy:",
+                            ]
+                        ),
+                    )
                     await sleep(0.1)
 
                     with engine.begin() as c:
@@ -116,36 +208,41 @@ async def timeline():
 
             await asyncio.sleep(20)
         except Exception:
-            wafbot_logger.exception("exception in timeline")
+            catbot_logger.exception("exception in timeline")
             break
+
 
 async def check_followers():
     global misskey
 
     while True:
-        
         try:
             for i in misskey.get_followers():
                 try:
                     with engine.begin() as c:
                         a = c.execute(
-                            select(follows_table)
-                            .where(follows_table.c.id == i["id"])
+                            select(follows_table).where(follows_table.c.id == i["id"])
                         ).fetchone()
 
                     if a is not None:
                         continue
 
-                    if not i["isFollowing"] and not i["hasPendingFollowRequestFromYou"] and not i["isBlocking"]:
+                    if (
+                        not i["isFollowing"]
+                        and not i["hasPendingFollowRequestFromYou"]
+                        and not i["isBlocking"]
+                    ):
                         print(f"follow {i['name']}")
                         while True:
                             follow = misskey.follow(i["id"])
                             if follow:
                                 with engine.begin() as c:
-                                    c.execute(insert(follows_table).values(
-                                        id=i["id"],
-                                        acct=misskey.get_effective_name(i),
-                                        followed=datetime.datetime.now())
+                                    c.execute(
+                                        insert(follows_table).values(
+                                            id=i["id"],
+                                            acct=misskey.get_effective_name(i),
+                                            followed=datetime.datetime.now(),
+                                        )
                                     )
                                 break
                             await asyncio.sleep(4)
@@ -167,7 +264,11 @@ async def check_followers():
                         unfollow_ok = misskey.unfollow(i[0])
                         if unfollow_ok:
                             with engine.begin() as c:
-                                c.execute(delete(follows_table).where((follows_table.c.id == i[0])))
+                                c.execute(
+                                    delete(follows_table).where(
+                                        (follows_table.c.id == i[0])
+                                    )
+                                )
 
                         await asyncio.sleep(1)
                     except Exception as e:
@@ -176,7 +277,7 @@ async def check_followers():
 
             await asyncio.sleep(180)
         except Exception:
-            wafbot_logger.exception("error in check_followers")
+            catbot_logger.exception("error in check_followers")
             break
 
 
@@ -188,25 +289,18 @@ async def status():
 
     while True:
         async with ClientSession() as session:
-            async with session.post(HEARTBEAT_URL, timeout=5):
+            async with session.post(HEARTBEAT_URL, timeout=ClientTimeout(total=5)):
                 pass
 
         await asyncio.sleep(60)
 
 
-async def wafin():
+async def main():
 
-    await asyncio.gather(
-        waf(),
-        reply(),
-        timeline(),
-        check_followers(),
-        status()
-    )
+    await asyncio.gather(meow(), reply(), timeline(), check_followers(), status())
 
 
-if __name__ == '__main__':
-
+if __name__ == "__main__":
     load_dotenv()
 
     MISSKEY_INSTANCE = getenv("MISSKEY_INSTANCE")
@@ -220,4 +314,4 @@ if __name__ == '__main__':
     misskey = Misskey()
     misskey.log_in(MISSKEY_INSTANCE, MISSKEY_TOKEN)
 
-    asyncio.run(wafin())
+    asyncio.run(main())
