@@ -1,13 +1,10 @@
 import json
 import os
 
-import dotenv
 from sqlalchemy import create_engine, MetaData, Table, VARCHAR, Column, DateTime
 
 if not os.path.exists("data"):
     os.mkdir("data")
-
-dotenv.load_dotenv()
 
 DATABASE_URL = os.getenv("DATABASE_URL") or "sqlite:///data/waf.db"
 DATABASE_CONNECT_ARGS = os.getenv("DATABASE_CONNECT_ARGS") or '{"timeout": 30}'
