@@ -14,6 +14,7 @@ from bs4 import BeautifulSoup
 from mastodon import Mastodon
 from mastodon.return_types import StatusMention
 from sqlalchemy import delete, insert, select
+from dotenv import load_dotenv
 
 from database import engine, follows_table, replied_posts
 from logger import catbot_logger
@@ -318,4 +319,5 @@ async def main():
 
 
 if __name__ == "__main__":
+    load_dotenv()
     asyncio.run(main())
