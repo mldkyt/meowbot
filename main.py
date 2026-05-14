@@ -183,7 +183,7 @@ async def timeline():
             statuses = mastodon.timeline_home()
 
             for status in statuses:
-                if status.reblog is None:
+                if status.reblog is not None:
                     continue
                 # Check author
                 if status.account.acct == me.acct:
@@ -314,7 +314,6 @@ async def status():
 
 
 async def main():
-
     await asyncio.gather(meow(), reply(), timeline(), check_followers(), status())
 
 
