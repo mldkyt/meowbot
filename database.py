@@ -1,15 +1,18 @@
 import json
 import os
 
-from sqlalchemy import create_engine, MetaData, Table, VARCHAR, Column, DateTime
+from dotenv import load_dotenv
+from sqlalchemy import create_engine, MetaData, Table, VARCHAR, Column, DateTime, INTEGER, StaticPool
 
 if not os.path.exists("data"):
     os.mkdir("data")
 
+load_dotenv()
+
 DATABASE_URL = os.getenv("DATABASE_URL") or "sqlite:///data/waf.db"
 DATABASE_CONNECT_ARGS = os.getenv("DATABASE_CONNECT_ARGS") or '{"timeout": 30}'
 
-engine = create_engine(DATABASE_URL, connect_args=json.loads(DATABASE_CONNECT_ARGS))
+engine = create_engine(DATABASE_URL, connect_args=json.loads(DATABASE_CONNECT_ARGS), poolclass=StaticPool)
 
 md_obj = MetaData()
 
@@ -25,6 +28,20 @@ follows_table = Table(
     Column("id", VARCHAR, primary_key=True),
     Column("acct", VARCHAR, nullable=False),
     Column("followed", DateTime, nullable=True, server_default="2026-01-28T00:00:00.000Z")
+)
+
+responded_dms = Table(
+    "responded_dms",
+    md_obj,
+    Column("post_id", VARCHAR, primary_key=True)
+)
+
+key_value_store = Table(
+    "kv_store",
+    md_obj,
+    Column("acct", VARCHAR, primary_key=True),
+    Column("setting", VARCHAR, primary_key=True),
+    Column("value", VARCHAR, nullable=False)
 )
 
 md_obj.create_all(engine, checkfirst=True)
