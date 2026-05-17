@@ -361,10 +361,8 @@ async def respond_dm():
             if i.type != "mention":
                 return
             if i.status is None:
-                catbot_logger.info(f"Skipping DM: No status attached")
                 continue
             if i.status.visibility != "direct":
-                catbot_logger.info(f"Skipping DM: Not direct visibility")
                 continue
 
             with engine.begin() as c:
@@ -372,14 +370,11 @@ async def respond_dm():
                     select(responded_dms)
                     .where(responded_dms.c.post_id == i.status.id)
                 ).fetchone() is not None:
-                    catbot_logger.info(f"Skipping DM: Already responded to")
                     continue
 
             text = get_text(BeautifulSoup(i.status.content)).strip()
-            catbot_logger.info("Got DM: %s", text)
 
             if not text.startswith(f"@{me.acct}"):
-                catbot_logger.info(f"Skipping DM: Not starting with @{me.acct}")
                 continue
 
             params = text.split(" ")
@@ -399,6 +394,12 @@ async def respond_dm():
                     mastodon.status_post(f"""@{i.account.acct} Help for meowbot
 - `enable boosting` or `disable boosting` - Enable the behaviour of the bot boosting your post.
 - `enable replying` or `disable replying` - Enable or disable the behaviour of the bot replying to posts.""", in_reply_to_id=i.status.id, visibility="direct")
+                elif params[1] == "get":
+                    enable_replies = get_setting(i.account.acct, "replying", "false")
+                    enable_boosts = get_setting(i.account.acct, "boosting", "false")
+                    mastodon.status_post(f"""@{i.account.acct} Your current settings:
+- Enable boosting: {'yes' if enable_boosts else 'no'}
+- Enable replying: {'yes' if enable_replies else 'no'}""", in_reply_to_id=i.status.id, visibility="direct")
                 else:
                     mastodon.status_post(f"@{i.account.acct} Unknown command", in_reply_to_id=i.status.id, visibility="direct")
             elif len(params) == 3:
