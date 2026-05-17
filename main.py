@@ -159,6 +159,8 @@ async def reply(debug=False):
         try:
             notifs = mastodon.notifications()
             for i in notifs:
+                if i.type != "mention":
+                    continue
                 if i.status is None:
                     continue
                 if i.status.account.acct == me.acct:
@@ -179,7 +181,7 @@ async def reply(debug=False):
                         continue
 
                 # Handle replying
-                reply_text = build_reply(get_text(BeautifulSoup(i.status.content)).lower())
+                reply_text = build_reply(get_text(BeautifulSoup(i.status.content)).strip().lower())
 
                 if len(reply_text.strip()) > 0:
                     if get_setting(i.status.account.acct, "boosting", "false"):
@@ -238,7 +240,7 @@ async def timeline():
                         continue
 
                 # Handle replying
-                reply_text = build_reply(get_text(BeautifulSoup(status.content)).lower())
+                reply_text = build_reply(get_text(BeautifulSoup(status.content)).strip().lower())
                 if len(reply_text.strip()) > 0:
                     if get_setting(status.account.acct, "boosting", "false"):
                         mastodon.status_reblog(status.id)
@@ -261,8 +263,6 @@ async def timeline():
                         c.execute(insert(replied_posts).values(id=str(status.id)))
 
                     await sleep(0.5)
-
-                await asyncio.sleep(0.5)
 
             await asyncio.sleep(20)
         except Exception:
