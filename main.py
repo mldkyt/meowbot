@@ -359,7 +359,7 @@ async def respond_dm():
     while True:
         for i in mastodon.notifications():
             if i.type != "mention":
-                return
+                continue
             if i.status is None:
                 continue
             if i.status.visibility != "direct":
