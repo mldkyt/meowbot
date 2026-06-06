@@ -108,7 +108,7 @@ def post_meow():
         if iter == 5:
             meowpost.append("ny" + "a" * randint(1, 5))
 
-    mastodon.toot(" ".join(meowpost))
+    mastodon.status_post(" ".join(meowpost), visibility="unlisted")
 
 
 async def meow():
@@ -191,7 +191,7 @@ async def reply(debug=False):
                         mastodon.status_post(
                             get_mentions(i.status.account.acct, i.status.mentions) + " " + reply_text + " :3",
                             in_reply_to_id=i.status.id,
-                            visibility=i.status.visibility
+                            visibility='unlisted' if i.status.visibility == 'public' else i.status.visibility
                         )
 
                     await sleep(0.1)
@@ -250,7 +250,8 @@ async def timeline():
                     if get_setting(status.account.acct, "replying", "false"):
                         mastodon.status_post(
                             get_mentions(status.account.acct, status.mentions) + " " + reply_text + " :3",
-                            in_reply_to_id=status.id
+                            in_reply_to_id=status.id,
+                            visibility='unlisted' if status.visibility == 'public' else status.visibility
                         )
 
                     emoji = random.choice(["neocat_floof", "neocat_pat_floof"])
@@ -377,55 +378,51 @@ async def respond_dm():
             if not text.startswith(f"@{me.acct}"):
                 continue
 
-            params = text.split(" ")
-            if len(params) == 1:
-                mastodon.status_post(f"Please give me a command! Do `@{me.acct} help` in order to get a list.", in_reply_to_id=i.status.id, visibility="direct")
-                continue
+            reply = ""
 
-            if params[1].startswith("@"):
-                del params[1]
+            for command_candidate in text.strip().splitlines():
+                params = command_candidate.split(" ")
+                params = [param for param in params if len(param.strip()) > 0]
 
-            if len(params) == 1:
-                mastodon.status_post(f"Please give me a command! Do `@{me.acct} help` in order to get a list.",
-                                     in_reply_to_id=i.status.id, visibility="direct")
-                continue
-            elif len(params) == 2:
-                if params[1] == "help":
-                    mastodon.status_post(f"""@{i.account.acct} Help for meowbot
+                if len(params) == 0:
+                    continue
+
+                if params[0].startswith("@"):
+                    del params[0]
+
+                if len(params) == 1:
+                    if params[0] == "help":
+                        reply += f"""Help for meowbot
 - `enable boosting` or `disable boosting` - Enable the behaviour of the bot boosting your post.
-- `enable replying` or `disable replying` - Enable or disable the behaviour of the bot replying to posts.""", in_reply_to_id=i.status.id, visibility="direct")
-                elif params[1] == "get":
-                    enable_replies = get_setting(i.account.acct, "replying", "false")
-                    enable_boosts = get_setting(i.account.acct, "boosting", "false")
-                    mastodon.status_post(f"""@{i.account.acct} Your current settings:
+- `enable replying` or `disable replying` - Enable or disable the behaviour of the bot replying to posts.\n\n"""
+                    elif params[0] == "get":
+                        enable_replies = get_setting(i.account.acct, "replying", "false")
+                        enable_boosts = get_setting(i.account.acct, "boosting", "false")
+                        reply += f"""Your current settings:
 - Enable boosting: {'yes' if enable_boosts else 'no'}
-- Enable replying: {'yes' if enable_replies else 'no'}""", in_reply_to_id=i.status.id, visibility="direct")
-                else:
-                    mastodon.status_post(f"@{i.account.acct} Unknown command", in_reply_to_id=i.status.id, visibility="direct")
-            elif len(params) == 3:
-                if params[1] == "enable":
-                    if params[2] == "boosting":
-                        set_setting(i.status.account.acct, "boosting", "true")
-                        mastodon.status_post(f"@{i.account.acct} Boosting is now enabled", in_reply_to_id=i.status.id,
-                                             visibility="direct")
-                    elif params[2] == "replying":
-                        set_setting(i.status.account.acct, "replying", "true")
-                        mastodon.status_post(f"@{i.account.acct} Replying is now enabled", in_reply_to_id=i.status.id,
-                                             visibility="direct")
-                    else:
-                        mastodon.status_post(f"@{i.account.acct} Unknown command", in_reply_to_id=i.status.id, visibility="direct")
-                elif params[1] == "disable":
-                    if params[2] == "boosting":
-                        set_setting(i.status.account.acct, "boosting", "false")
-                        mastodon.status_post(f"@{i.account.acct} Boosting is now disabled", in_reply_to_id=i.status.id,
-                                             visibility="direct")
-                    elif params[2] == "replying":
-                        set_setting(i.status.account.acct, "replying", "false")
-                        mastodon.status_post(f"@{i.account.acct} Replying is now disabled", in_reply_to_id=i.status.id,
-                                             visibility="direct")
-                    else:
-                        mastodon.status_post(f"@{i.account.acct} Unknown command", in_reply_to_id=i.status.id,
-                                             visibility="direct")
+- Enable replying: {'yes' if enable_replies else 'no'}\n\n"""
+                    elif params[0] == "meow":
+                        reply += "meow\n\n"
+                elif len(params) == 2:
+                    if params[0] == "enable":
+                        if params[1] == "boosting":
+                            set_setting(i.status.account.acct, "boosting", "true")
+                            reply += f"Boosting is now enabled\n\n"
+                        elif params[1] == "replying":
+                            set_setting(i.status.account.acct, "replying", "true")
+                            reply += f"Replying is now enabled\n\n"
+                    elif params[0] == "disable":
+                        if params[1] == "boosting":
+                            set_setting(i.status.account.acct, "boosting", "false")
+                            reply += f"Boosting is now disabled\n\n"
+                        elif params[1] == "replying":
+                            set_setting(i.status.account.acct, "replying", "false")
+                            reply += f"Replying is now disabled\n\n"
+
+            if len(reply.strip()) == 0:
+                reply += "Unrecognized command. Please type `help` to get help."
+
+            mastodon.status_post(f"@{i.account.acct} {reply}", content_type="text/markdown", visibility="direct", in_reply_to_id=i.status)
 
             with engine.begin() as c:
                 c.execute(
