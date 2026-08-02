@@ -9,7 +9,7 @@ if not os.path.exists("data"):
 
 load_dotenv()
 
-DATABASE_URL = os.getenv("DATABASE_URL") or "sqlite:///data/waf.db"
+DATABASE_URL = os.getenv("DATABASE_URL") or "sqlite:///data/meow.db"
 DATABASE_CONNECT_ARGS = os.getenv("DATABASE_CONNECT_ARGS") or '{"timeout": 30}'
 
 engine = create_engine(DATABASE_URL, connect_args=json.loads(DATABASE_CONNECT_ARGS), poolclass=StaticPool)
