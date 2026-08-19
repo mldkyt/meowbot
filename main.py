@@ -2,8 +2,8 @@ import asyncio
 import datetime
 import random
 import re
-import typing
 from asyncio import sleep
+from collections.abc import Generator
 from os import getenv
 from random import randint
 
@@ -16,18 +16,43 @@ from mastodon import Mastodon
 from mastodon.return_types import StatusMention
 from sqlalchemy import delete, insert, select, update
 
-from database import engine, follows_table, replied_posts, responded_dms, key_value_store
+from database import (
+    engine,
+    follows_table,
+    key_value_store,
+    replied_posts,
+    responded_dms,
+)
 from logger import catbot_logger
 
 mastodon = Mastodon(access_token="data/pytooter_usercred.secret")
 me = mastodon.me()
 
+
 # borrowed from https://stackoverflow.com/questions/30337528/make-beautifulsoup-handle-line-breaks-as-a-browser-would
 def get_text(tag: bs4.Tag) -> str:
-    _inline_elements = {"a","span","em","strong","u","i","font","mark","label",
-    "s","sub","sup","tt","bdo","button","cite","del","b","a","font",}
+    _inline_elements = {
+        "a",
+        "span",
+        "em",
+        "strong",
+        "u",
+        "i",
+        "font",
+        "mark",
+        "label",
+        "s",
+        "sub",
+        "sup",
+        "tt",
+        "bdo",
+        "button",
+        "cite",
+        "del",
+        "b",
+    }
 
-    def _get_text(tag: bs4.Tag) -> typing.Generator:
+    def _get_text(tag: bs4.Tag) -> Generator:
         for child in tag.children:
             if isinstance(child, bs4.Tag):
                 # if the tag is a block type tag then yield new lines before after
@@ -43,11 +68,12 @@ def get_text(tag: bs4.Tag) -> str:
     return "".join(_get_text(tag))
 
 
-def get_setting(acct: str, key: str, default_value: str = None):
+def get_setting(acct: str, key: str, default_value: str | None = None):
     with engine.begin() as c:
         res = c.execute(
-            select(key_value_store.c.value)
-            .where((key_value_store.c.acct == acct) & (key_value_store.c.setting == key))
+            select(key_value_store.c.value).where(
+                (key_value_store.c.acct == acct) & (key_value_store.c.setting == key)
+            )
         ).fetchone()
 
         if res is not None:
@@ -55,23 +81,27 @@ def get_setting(acct: str, key: str, default_value: str = None):
 
     return default_value
 
+
 def set_setting(acct: str, key: str, value: str):
     with engine.begin() as c:
         res = c.execute(
-            select(key_value_store.c.value)
-            .where((key_value_store.c.acct == acct) & (key_value_store.c.setting == key))
+            select(key_value_store.c.value).where(
+                (key_value_store.c.acct == acct) & (key_value_store.c.setting == key)
+            )
         ).fetchone()
 
         if res is not None:
             c.execute(
                 update(key_value_store)
                 .values(value=value)
-                .where((key_value_store.c.acct == acct) & (key_value_store.c.setting == key))
+                .where(
+                    (key_value_store.c.acct == acct)
+                    & (key_value_store.c.setting == key)
+                )
             )
         else:
             c.execute(
-                insert(key_value_store)
-                .values(acct=acct, setting=key, value=value)
+                insert(key_value_store).values(acct=acct, setting=key, value=value)
             )
 
 
@@ -173,7 +203,7 @@ async def reply(debug=False):
                     if (
                         c.execute(
                             select(replied_posts).where(
-                                (replied_posts.c.id == str(i.status.id))
+                                replied_posts.c.id == str(i.status.id)
                             )
                         ).fetchone()
                         is not None
@@ -181,26 +211,39 @@ async def reply(debug=False):
                         continue
 
                 # Handle replying
-                reply_text = build_reply(get_text(BeautifulSoup(i.status.content)).strip().lower())
+                reply_text = build_reply(
+                    get_text(BeautifulSoup(i.status.content)).strip().lower()
+                )
 
                 if len(reply_text.strip()) > 0:
                     if get_setting(i.status.account.acct, "boosting", "false"):
-                        mastodon.status_reblog(i.status.id)
+                        mastodon.status_reblog(
+                            i.status.id,
+                            visibility=i.status.visibility
+                            if i.status.visibility != "public"
+                            else "unlisted",
+                        )
                     await sleep(0.1)
                     if get_setting(i.status.account.acct, "replying", "false"):
                         mastodon.status_post(
-                            get_mentions(i.status.account.acct, i.status.mentions) + " " + reply_text + " :3",
+                            get_mentions(i.status.account.acct, i.status.mentions)
+                            + " "
+                            + reply_text
+                            + " :3",
                             in_reply_to_id=i.status.id,
-                            visibility='unlisted' if i.status.visibility == 'public' else i.status.visibility
+                            visibility="unlisted"
+                            if i.status.visibility == "public"
+                            else i.status.visibility,
                         )
 
                     await sleep(0.1)
 
                     emoji = random.choice(["neocat_floof", "neocat_pat_floof"])
                     # Reaction
-                    requests.put(f"{mastodon.api_base_url}/api/v1/pleroma/statuses/{i.status.id}/reactions/:{emoji}:", headers={
-                        "Authorization": f"Bearer {mastodon.access_token}"
-                    })
+                    requests.put(
+                        f"{mastodon.api_base_url}/api/v1/pleroma/statuses/{i.status.id}/reactions/:{emoji}:",
+                        headers={"Authorization": f"Bearer {mastodon.access_token}"},
+                    )
 
                     await sleep(0.1)
 
@@ -232,7 +275,7 @@ async def timeline():
                     if (
                         c.execute(
                             select(replied_posts).where(
-                                (replied_posts.c.id == str(status.id))
+                                replied_posts.c.id == str(status.id)
                             )
                         ).fetchone()
                         is not None
@@ -240,25 +283,38 @@ async def timeline():
                         continue
 
                 # Handle replying
-                reply_text = build_reply(get_text(BeautifulSoup(status.content)).strip().lower())
+                reply_text = build_reply(
+                    get_text(BeautifulSoup(status.content)).strip().lower()
+                )
                 if len(reply_text.strip()) > 0:
                     if get_setting(status.account.acct, "boosting", "false"):
-                        mastodon.status_reblog(status.id)
+                        mastodon.status_reblog(
+                            status.id,
+                            visibility=status.visibility
+                            if status.visibility != "public"
+                            else "unlisted",
+                        )
 
                     await sleep(0.1)
 
                     if get_setting(status.account.acct, "replying", "false"):
                         mastodon.status_post(
-                            get_mentions(status.account.acct, status.mentions) + " " + reply_text + " :3",
+                            get_mentions(status.account.acct, status.mentions)
+                            + " "
+                            + reply_text
+                            + " :3",
                             in_reply_to_id=status.id,
-                            visibility='unlisted' if status.visibility == 'public' else status.visibility
+                            visibility="unlisted"
+                            if status.visibility == "public"
+                            else status.visibility,
                         )
 
                     emoji = random.choice(["neocat_floof", "neocat_pat_floof"])
                     # Reaction
-                    requests.put(f"{mastodon.api_base_url}/api/v1/pleroma/statuses/{status.id}/reactions/:{emoji}:", headers={
-                        "Authorization": f"Bearer {mastodon.access_token}"
-                    })
+                    requests.put(
+                        f"{mastodon.api_base_url}/api/v1/pleroma/statuses/{status.id}/reactions/:{emoji}:",
+                        headers={"Authorization": f"Bearer {mastodon.access_token}"},
+                    )
 
                     with engine.begin() as c:
                         c.execute(insert(replied_posts).values(id=str(status.id)))
@@ -287,8 +343,8 @@ async def check_followers():
                     rel = mastodon.account_relationships(i)
 
                     if (
-                        len(rel) == 0 or
-                        not rel[0].following
+                        len(rel) == 0
+                        or not rel[0].following
                         and not rel[0].requested_by
                         and not rel[0].blocked_by
                     ):
@@ -324,15 +380,12 @@ async def check_followers():
                         unfollow_ok = mastodon.account_unfollow(i[0])
                         with engine.begin() as c:
                             c.execute(
-                                delete(follows_table).where(
-                                    (follows_table.c.id == i[0])
-                                )
+                                delete(follows_table).where(follows_table.c.id == i[0])
                             )
 
                         await asyncio.sleep(1)
                     except Exception as e:
-                        print(f"failed to unfollow {i[0]}: {str(e)}")
-                        pass
+                        print(f"failed to unfollow {i[0]}: {e!s}")
 
             await asyncio.sleep(180)
         except Exception:
@@ -367,10 +420,14 @@ async def respond_dm():
                 continue
 
             with engine.begin() as c:
-                if c.execute(
-                    select(responded_dms)
-                    .where(responded_dms.c.post_id == i.status.id)
-                ).fetchone() is not None:
+                if (
+                    c.execute(
+                        select(responded_dms).where(
+                            responded_dms.c.post_id == i.status.id
+                        )
+                    ).fetchone()
+                    is not None
+                ):
                     continue
 
             text = get_text(BeautifulSoup(i.status.content)).strip()
@@ -392,49 +449,55 @@ async def respond_dm():
 
                 if len(params) == 1:
                     if params[0] == "help":
-                        reply += f"""Help for meowbot
+                        reply += """Help for meowbot
 - `enable boosting` or `disable boosting` - Enable the behaviour of the bot boosting your post.
 - `enable replying` or `disable replying` - Enable or disable the behaviour of the bot replying to posts.\n\n"""
                     elif params[0] == "get":
-                        enable_replies = get_setting(i.account.acct, "replying", "false")
+                        enable_replies = get_setting(
+                            i.account.acct, "replying", "false"
+                        )
                         enable_boosts = get_setting(i.account.acct, "boosting", "false")
                         reply += f"""Your current settings:
-- Enable boosting: {'yes' if enable_boosts else 'no'}
-- Enable replying: {'yes' if enable_replies else 'no'}\n\n"""
+- Enable boosting: {"yes" if enable_boosts else "no"}
+- Enable replying: {"yes" if enable_replies else "no"}\n\n"""
                     elif params[0] == "meow":
                         reply += "meow\n\n"
                 elif len(params) == 2:
                     if params[0] == "enable":
                         if params[1] == "boosting":
                             set_setting(i.status.account.acct, "boosting", "true")
-                            reply += f"Boosting is now enabled\n\n"
+                            reply += "Boosting is now enabled\n\n"
                         elif params[1] == "replying":
                             set_setting(i.status.account.acct, "replying", "true")
-                            reply += f"Replying is now enabled\n\n"
+                            reply += "Replying is now enabled\n\n"
                     elif params[0] == "disable":
                         if params[1] == "boosting":
                             set_setting(i.status.account.acct, "boosting", "false")
-                            reply += f"Boosting is now disabled\n\n"
+                            reply += "Boosting is now disabled\n\n"
                         elif params[1] == "replying":
                             set_setting(i.status.account.acct, "replying", "false")
-                            reply += f"Replying is now disabled\n\n"
+                            reply += "Replying is now disabled\n\n"
 
             if len(reply.strip()) == 0:
                 reply += "Unrecognized command. Please type `help` to get help."
 
-            mastodon.status_post(f"@{i.account.acct} {reply}", content_type="text/markdown", visibility="direct", in_reply_to_id=i.status)
+            mastodon.status_post(
+                f"@{i.account.acct} {reply}",
+                content_type="text/markdown",
+                visibility="direct",
+                in_reply_to_id=i.status,
+            )
 
             with engine.begin() as c:
-                c.execute(
-                    insert(responded_dms)
-                    .values(post_id=i.status.id)
-                )
+                c.execute(insert(responded_dms).values(post_id=i.status.id))
 
         await asyncio.sleep(10)
 
 
 async def main():
-    await asyncio.gather(meow(), reply(), timeline(), check_followers(), status(), respond_dm())
+    await asyncio.gather(
+        meow(), reply(), timeline(), check_followers(), status(), respond_dm()
+    )
 
 
 if __name__ == "__main__":
