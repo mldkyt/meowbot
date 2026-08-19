@@ -3,14 +3,12 @@ import datetime
 import random
 import re
 from asyncio import sleep
-from collections.abc import Generator
 from os import getenv
 from random import randint
 
-import bs4
+import html2text
 import requests
 from aiohttp import ClientSession, ClientTimeout
-from bs4 import BeautifulSoup
 from dotenv import load_dotenv
 from mastodon import Mastodon
 from mastodon.return_types import StatusMention
@@ -27,45 +25,6 @@ from logger import catbot_logger
 
 mastodon = Mastodon(access_token="data/pytooter_usercred.secret")
 me = mastodon.me()
-
-
-# borrowed from https://stackoverflow.com/questions/30337528/make-beautifulsoup-handle-line-breaks-as-a-browser-would
-def get_text(tag: bs4.Tag) -> str:
-    _inline_elements = {
-        "a",
-        "span",
-        "em",
-        "strong",
-        "u",
-        "i",
-        "font",
-        "mark",
-        "label",
-        "s",
-        "sub",
-        "sup",
-        "tt",
-        "bdo",
-        "button",
-        "cite",
-        "del",
-        "b",
-    }
-
-    def _get_text(tag: bs4.Tag) -> Generator:
-        for child in tag.children:
-            if isinstance(child, bs4.Tag):
-                # if the tag is a block type tag then yield new lines before after
-                is_block_element = child.name not in _inline_elements
-                if is_block_element:
-                    yield "\n"
-                yield from ["\n"] if child.name == "br" else _get_text(child)
-                if is_block_element:
-                    yield "\n"
-            elif isinstance(child, bs4.NavigableString):
-                yield child.string
-
-    return "".join(_get_text(tag))
 
 
 def get_setting(acct: str, key: str, default_value: str | None = None):
@@ -212,7 +171,7 @@ async def reply(debug=False):
 
                 # Handle replying
                 reply_text = build_reply(
-                    get_text(BeautifulSoup(i.status.content)).strip().lower()
+                    html2text.html2text(i.status.content).strip().lower()
                 )
 
                 if len(reply_text.strip()) > 0:
@@ -284,7 +243,7 @@ async def timeline():
 
                 # Handle replying
                 reply_text = build_reply(
-                    get_text(BeautifulSoup(status.content)).strip().lower()
+                    html2text.html2text(status.content).strip().lower()
                 )
                 if len(reply_text.strip()) > 0:
                     if get_setting(status.account.acct, "boosting", "false"):
@@ -430,7 +389,7 @@ async def respond_dm():
                 ):
                     continue
 
-            text = get_text(BeautifulSoup(i.status.content)).strip()
+            text = html2text.html2text(i.status.content).strip()
 
             if not text.startswith(f"@{me.acct}"):
                 continue
