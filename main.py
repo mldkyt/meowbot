@@ -453,9 +453,23 @@ async def respond_dm():
         await asyncio.sleep(10)
 
 
+async def run_task(task, name: str):
+    while True:
+        try:
+            await task()
+        except Exception:
+            catbot_logger.exception(f"exception in {name}")
+            await asyncio.sleep(5)
+
+
 async def main():
     await asyncio.gather(
-        meow(), reply(), timeline(), check_followers(), status(), respond_dm()
+        run_task(meow, "meow"),
+        run_task(reply, "reply"),
+        run_task(timeline, "timeline"),
+        run_task(check_followers, "check_followers"),
+        run_task(status, "status"),
+        run_task(respond_dm, "respond_dm")
     )
 
 
