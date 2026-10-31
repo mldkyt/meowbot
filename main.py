@@ -307,7 +307,7 @@ async def check_followers():
                         and not rel[0].requested_by
                         and not rel[0].blocked_by
                     ):
-                        print(f"follow {i['name']}")
+                        print(f"follow {i.acct}")
                         while True:
                             follow = mastodon.account_follow(i)
                             if follow:
@@ -322,7 +322,8 @@ async def check_followers():
                                 break
                             await asyncio.sleep(4)
                 except Exception:
-                    print("fail to follow", i["name"])
+                    catbot_logger.exception(f"exception in check_followers")
+                    print("fail to follow", i.acct)
                     break
 
             with engine.begin() as c:
